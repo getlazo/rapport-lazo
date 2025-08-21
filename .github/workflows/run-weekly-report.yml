@@ -2,8 +2,8 @@ name: Weekly Report
 
 on:
   schedule:
-    - cron: "0 7 * * 1"  # Lundi 09:00 Paris l'été (07:00 UTC)
-  workflow_dispatch: {}
+    - cron: "0 7 * * 1"     # Lundi 09:00 (heure de Paris en été). Tu peux ajuster.
+  workflow_dispatch: {}      # Permet de lancer à la main
 
 jobs:
   run:
@@ -20,39 +20,41 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies (if any)
         run: |
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # ✅ Vérifie que les secrets requis sont bien là (sans afficher les valeurs)
-      - name: Preflight - check required env
+      # ✅ Vérifie que les variables attendues par TON .env existent côté Secrets
+      # (NOMS EXACTS = ceux de ton .env ; complète/retire des lignes si besoin)
+      - name: Preflight (no secrets printed)
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           missing=0
-          for v in DB_HOST DB_USER DB_PASSWORD DB_NAME NOTION_TOKEN; do
-            if [ -z "${!v}" ]; then echo "::error ::Missing env $v"; missing=1; fi
-          done
+          check() { var="$1"; val="${!var}"; if [ -z "$val" ]; then echo "::error ::Missing env $var"; missing=1; else echo "✓ $var present"; fi; }
+          check MYSQL_PASSWORD
+          check NOTION_TOKEN
+          check NOTION_DATABASE_ID
+          check GEMINI_API_KEY
           if [ $missing -eq 1 ]; then exit 1; fi
 
-      - name: Run weekly report
+      - name: Run weekly report (no code changes)
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ secrets.DB_NAME }}
+          MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           PYTHONUNBUFFERED: "1"
         run: |
           python -V
-          python main.py   # 👈 exécute ton vrai script
+          # si ton script d'entrée s'appelle autrement, remplace 'main.py'
+          python main.py
 
-      - name: Upload artifact (report)
+      - name: Upload artifact (optional, ignore if none)
         if: always()
         uses: actions/upload-artifact@v4
         with:
